@@ -11,7 +11,7 @@ PRODUCT_COOLDOWN = 30  # 30 giây mới gửi link tiếp
 
 pending_sp_users = set()
 
-TOKEN = "BOT_TOKEN"
+TOKEN = "8500760879:AAEQPrBGuni-PYMtpwl2DomeCx8veChlKkg"
 ADMIN_ID = 6500271609
 
 bot = telebot.TeleBot(TOKEN)

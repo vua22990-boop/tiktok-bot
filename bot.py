@@ -5,9 +5,13 @@ import datetime
 import random
 import string
 import time
+import json
+import os
+import re
 
 last_product_time = {}
 PRODUCT_COOLDOWN = 30  # 30 giây mới gửi link tiếp
+DB_FILE = "database.json"
 
 pending_sp_users = set()
 
@@ -44,6 +48,36 @@ def check_block(message):
         )
         return True
     return False
+def save_data():
+    data = {
+        "users": users,
+        "orders": orders,
+        "withdraw_requests": withdraw_requests,
+        "blocked_users": list(blocked_users)
+    }
+
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+def is_valid_url(url):
+    regex = r"https?://[^\s]+"
+    return re.match(regex, url)
+    
+def load_data():
+    global users, orders, withdraw_requests, blocked_users
+
+    if not os.path.exists(DB_FILE):
+        return
+
+    with open(DB_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+        users = data.get("users", {})
+        orders = data.get("orders", [])
+        withdraw_requests = data.get("withdraw_requests", [])
+        blocked_users = set(data.get("blocked_users", []))
+
+
 # ================= MENU =================
 def main_menu(user_id):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -99,6 +133,18 @@ def buy(message):
 
 @bot.message_handler(commands=['sp'])
 def handle_sp(message):
+    now = time.time()
+
+    if user_id in last_product_time:
+        if now - last_product_time[user_id] < PRODUCT_COOLDOWN:
+            bot.reply_to(
+                message,
+                "⏳ Vui lòng đợi 30 giây trước khi tạo đơn mới"
+            )
+            return
+
+    last_product_time[user_id] = now
+
     if check_block(message):
         return
     user_id = message.from_user.id
@@ -108,6 +154,12 @@ def handle_sp(message):
 
     try:
         link = message.text.split(" ", 1)[1]
+    if not is_valid_url(link):
+        bot.reply_to(
+            message,
+            "❌ Link không hợp lệ\n\nVui lòng gửi link đúng định dạng"
+        )
+        return
     except:
         bot.reply_to(
             message,
@@ -123,6 +175,7 @@ def handle_sp(message):
 
     # Lưu đơn
     orders.append({
+        save_data()
         "code": order_code,
         "user_id": user_id,
         "original_link": link,
@@ -232,6 +285,7 @@ def process_withdraw(message):
     withdraw_code = "WD" + ''.join(random.choices(string.digits, k=4))
 
     withdraw_requests.append({
+        save_data()
         "code": withdraw_code,
         "user_id": user_id,
         "amount": amount,
@@ -499,7 +553,9 @@ def unlock_money(message):
         return
 
     user["locked"] -= amount
+    save_data()
     user["balance"] += amount
+    save_data()
 
     bot.send_message(
         message.chat.id,
@@ -716,6 +772,7 @@ def block_user(message):
         return
 
     blocked_users.add(uid)
+    save_data()
 
     bot.send_message(
         message.chat.id,
@@ -740,6 +797,7 @@ def unblock_user(message):
         return
 
     blocked_users.discard(uid)
+    save_data()
 
     bot.send_message(
         message.chat.id,
@@ -780,6 +838,7 @@ def back_menu_inline(call):
         "🏠 MENU CHÍNH",
         reply_markup=main_menu(call.from_user.id)
     )
-
+    
+load_data()
 print("Bot running...")
 bot.infinity_polling()

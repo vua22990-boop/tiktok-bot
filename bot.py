@@ -72,7 +72,7 @@ def load_data():
     with open(DB_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-        users = data.get("users", {})
+        users = {int(k): v for k, v in data.get("users", {}).items()}
         orders = data.get("orders", [])
         withdraw_requests = data.get("withdraw_requests", [])
         blocked_users = set(data.get("blocked_users", []))
@@ -133,6 +133,11 @@ def buy(message):
 
 @bot.message_handler(commands=['sp'])
 def handle_sp(message):
+
+    if check_block(message):
+        return
+
+    user_id = message.from_user.id
     now = time.time()
 
     if user_id in last_product_time:
@@ -144,7 +149,7 @@ def handle_sp(message):
             return
 
     last_product_time[user_id] = now
-
+    
     if check_block(message):
         return
     user_id = message.from_user.id
@@ -154,12 +159,6 @@ def handle_sp(message):
 
     try:
         link = message.text.split(" ", 1)[1]
-    if not is_valid_url(link):
-        bot.reply_to(
-            message,
-            "❌ Link không hợp lệ\n\nVui lòng gửi link đúng định dạng"
-        )
-        return
     except:
         bot.reply_to(
             message,
@@ -169,13 +168,19 @@ def handle_sp(message):
         )
         return
 
+    if not is_valid_url(link):
+        bot.reply_to(
+            message,
+            "❌ Link không hợp lệ\n\nVui lòng gửi link đúng định dạng"
+        )
+        return
+
     # Tạo mã đơn DHxxxx
     order_code = "DH" + ''.join(random.choices(string.digits, k=4))
     time_now = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
 
     # Lưu đơn
     orders.append({
-        save_data()
         "code": order_code,
         "user_id": user_id,
         "original_link": link,
@@ -184,6 +189,8 @@ def handle_sp(message):
         "status": "pending",
         "time": time_now
     })
+
+save_data()
 
     user = get_user(user_id)
     user["purchase_history"].append({
@@ -285,7 +292,6 @@ def process_withdraw(message):
     withdraw_code = "WD" + ''.join(random.choices(string.digits, k=4))
 
     withdraw_requests.append({
-        save_data()
         "code": withdraw_code,
         "user_id": user_id,
         "amount": amount,
@@ -295,6 +301,8 @@ def process_withdraw(message):
         "status": "pending",
         "time": datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     })
+
+    save_data()
 
     markup = InlineKeyboardMarkup()
     markup.add(

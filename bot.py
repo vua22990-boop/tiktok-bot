@@ -15,7 +15,7 @@ DB_FILE = "database.json"
 
 pending_sp_users = set()
 
-TOKEN = "8500760879:AAEQPrBGuni-PYMtpwl2DomeCx8veChlKkg"
+TOKEN = "8500760879:AAFjfnNsM57yGMMqyhUMxg2jKefnzxKmgYk"
 ADMIN_ID = 6500271609
 
 bot = telebot.TeleBot(TOKEN)
@@ -149,10 +149,6 @@ def handle_sp(message):
             return
 
     last_product_time[user_id] = now
-    
-    if check_block(message):
-        return
-    user_id = message.from_user.id
 
     if user_id not in pending_sp_users:
         return
@@ -190,7 +186,7 @@ def handle_sp(message):
         "time": time_now
     })
 
-save_data()
+    save_data()
 
     user = get_user(user_id)
     user["purchase_history"].append({
@@ -200,6 +196,8 @@ save_data()
         "status": "Chờ xác nhận",
         "time": time_now
     })
+
+    save_data()
 
     pending_sp_users.remove(user_id)
 
